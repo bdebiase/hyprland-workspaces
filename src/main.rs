@@ -1,4 +1,4 @@
-use hyprland::data::{Monitors, Workspace, Workspaces};
+use hyprland::data::{Monitors, Workspace, Workspaces, Clients};
 use hyprland::event_listener::EventListenerMutable as EventListener;
 use hyprland::shared::HyprData;
 use hyprland::shared::HyprDataActive;
@@ -6,6 +6,14 @@ use hyprland::Result;
 use std::env;
 use serde::Serialize;
 use serde_json::json;
+
+// CUSTOM IMPORTS
+use std::fs;
+use image::{open, Rgb};
+use std::collections::HashMap;
+use std::path::Path;
+use std::fs::File;
+use std::io::{self, BufRead};
 
 const HELP: &str = "\
 hyprland-workspaces: a multi monitor aware hyprland workspaces json widget generator for eww/waybar.
@@ -26,6 +34,11 @@ struct WorkspaceCustom {
     pub id: i32,
     pub active: bool,
     pub class: String,
+
+    // CUSTOM
+    pub windows: u16,
+    pub icon_path: String,
+    pub color: [u8; 3],
 }
 
 fn output(monitor: &str) {
@@ -52,27 +65,85 @@ fn output(monitor: &str) {
         .unwrap()
         .name;
 
-    let mut out_workspaces: Vec<WorkspaceCustom> = Vec::new();
+    //let mut out_workspaces: Vec<WorkspaceCustom> = Vec::new();
+    let mut out_workspaces: Vec<WorkspaceCustom> = (1..=10).map(|id| {
+        WorkspaceCustom {
+            name: format!("Workspace {}", id),
+            id: id,
+            active: false,
+            class: format!("workspace-button w{}", id),
+    
+            // CUSTOM
+            windows: 0,
+            icon_path: "".to_string(),
+            color: [0, 0, 0],
+        }
+    }).collect();
 
     for workspace in workspaces.iter().filter(|m| m.monitor == monitor || monitor == "_") {
-            let mut active = false;
-            let mut class = format!("workspace-button w{}",workspace.id);
-            if active_workspace_id == workspace.id && (active_monitor_name == monitor || monitor == "_") {
-                class = format!("{} workspace-active wa{}", class, workspace.id);
-                active = true;
+        let mut class = format!("workspace-button w{}" ,workspace.id);
+        let mut active = false;
+
+        // CUSTOM IMPLEMENTATION
+        let mut clients = Clients::get().expect("unable to get clients").into_iter();
+        let last_client = clients.find(|client| client.title == workspace.last_window_title);
+
+        let mut icon_path = "".to_string();
+        let mut color = [0, 0, 0];
+        
+        if let Some(client) = last_client {
+            let mut class_name = client.initial_class.to_lowercase();
+            class_name = match class_name.as_str() {
+                "code-url-handler" => "code".to_string(),
+                "kitty-temp" => "kitty".to_string(),
+                _ => class_name,
+            };
+
+            if class_name == "" {
+                class_name = client.initial_title.to_lowercase();
             }
 
-            let ws: WorkspaceCustom = WorkspaceCustom {
-                name: workspace.name.clone(),
-                id: workspace.id,
-                active,
-                class,
-            };
-            out_workspaces.push(ws);
+            match linicon::lookup_icon(class_name)
+                .next() {
+                Some(Ok(icon)) => {
+                    match icon.path.to_str() {
+                        Some(path_str) => {
+                            icon_path = path_str.to_string();  
+                            color = get_primary_color_svg(icon_path.clone()).unwrap_or([0, 0, 0]);
+                        }
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if active_workspace_id == workspace.id && (active_monitor_name == monitor || monitor == "_") {
+            class = format!("{} workspace-active wa{}", class, workspace.id);
+            active = true;
+        }
+
+        let ws: WorkspaceCustom = WorkspaceCustom {
+            name: workspace.name.clone(),
+            id: workspace.id,
+            active,
+            class,
+
+            // CUSTOM
+            windows: workspace.windows,
+            icon_path,
+            color,
+        };
+
+        // Find and update the corresponding workspace in out_workspaces
+        if let Some(out_workspace) = out_workspaces.iter_mut().find(|w| w.id == ws.id) {
+            *out_workspace = ws;
+        }
+
+        //out_workspaces.push(ws);
     }
     println!("{}", json!(out_workspaces).to_string());
 }
-
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -151,4 +222,122 @@ fn main() -> Result<()> {
 
     event_listener.start_listener()
     
+}
+
+
+fn get_desktop_file_path(class_name: &str) -> Option<String> {
+    let dir = Path::new("/etc/profiles/per-user/ben/share/applications/");
+    let entries = fs::read_dir(dir).unwrap();
+
+    for entry in entries {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let file_name = path.file_stem().unwrap().to_str().unwrap();
+        
+        // Open the .desktop file and read its contents
+        let file = fs::File::open(&path).unwrap();
+        let reader = std::io::BufReader::new(file);
+        
+        // Initialize variables to hold the found values
+        let mut is_application = false;
+        let mut startup_wm_class = None;
+        
+        // Read each line of the .desktop file
+        for line in reader.lines() {
+            let line = line.unwrap();
+            if line.starts_with("Type=Application") {
+                is_application = true;
+            } else if line.starts_with("StartupWMClass=") {
+                startup_wm_class = Some(line["StartupWMClass=".len()..].to_string());
+            }
+        }
+        
+        // If the file is not an application, ignore it
+        if !is_application {
+            continue;
+        }
+        
+        // Check if the class name matches the StartupWMClass or the file name
+        if Some(class_name.to_string()) == startup_wm_class || class_name == file_name {
+            return Some(path.to_str().unwrap().to_string());
+        }
+    }
+
+    None
+}
+
+
+fn get_icon_name(desktop_file_path: &str) -> io::Result<Option<String>> {
+    let file = File::open(desktop_file_path)?;
+    let reader = io::BufReader::new(file);
+
+    for line in reader.lines() {
+        let line = line?;
+        if line.starts_with("Icon=") {
+            return Ok(Some(line[5..].to_string()));
+        }
+    }
+
+    Ok(None)
+}
+
+
+fn get_primary_color_svg(string_path: String) -> Option<[u8; 3]> {
+    if string_path == "" {
+        return None;
+    }
+
+    let svg =
+        nsvg::parse_file(Path::new(&string_path), nsvg::Units::Pixel, 96.0)
+            .unwrap();
+
+    let image = svg.rasterize(2.0).unwrap();
+    let mut color_counts = HashMap::new();
+    for pixel in image.pixels() {
+        if pixel.data[3] <= 1 {
+            continue;
+        }
+
+        let color = Rgb([pixel[0], pixel[1], pixel[2]]);
+
+        let threshold = 100;
+        if color[0] > threshold && color[1] > threshold && color[2] > threshold {
+            continue;
+        }
+
+        *color_counts.entry(color).or_insert(0) += 1;
+    }
+
+    let (primary_color, _) = color_counts
+        .into_iter()
+        .max_by_key(|&(_, count)| count)
+        .unwrap();
+
+    Some([primary_color[0], primary_color[1], primary_color[2]])
+}
+
+fn get_primary_color_png(string_path: String) -> Option<[u8; 3]> {
+    if string_path == "" {
+        return None;
+    }
+
+    let img = open(Path::new(&string_path)).unwrap().into_rgb8();
+    let mut color_counts = HashMap::new();
+
+    for pixel in img.pixels() {
+        let color = Rgb([pixel[0], pixel[1], pixel[2]]);
+
+        if color == Rgb([255, 255, 255]) {
+            continue;
+        }
+
+        *color_counts.entry(color).or_insert(0) += 1;
+    }
+
+    let (primary_color, _) = color_counts
+        .into_iter()
+        .max_by_key(|&(_, count)| count)
+        .unwrap();
+
+    Some([primary_color[0], primary_color[1], primary_color[2]])
 }
