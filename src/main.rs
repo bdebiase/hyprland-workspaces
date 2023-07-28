@@ -92,7 +92,7 @@ fn output(monitor: &str) {
         let mut color = [0, 0, 0];
         
         if let Some(client) = last_client {
-            let mut class_name = client.initial_class.to_lowercase();
+            let mut class_name = client.initial_class;
             class_name = match class_name.as_str() {
                 "code-url-handler" => "code".to_string(),
                 "kitty-temp" => "kitty".to_string(),
@@ -100,7 +100,7 @@ fn output(monitor: &str) {
             };
 
             if class_name == "" {
-                class_name = client.initial_title.to_lowercase();
+                class_name = client.initial_title;
             }
 
             match linicon::lookup_icon(class_name)
@@ -147,11 +147,13 @@ fn output(monitor: &str) {
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
+
     //check args
     if args.len() != 2 || args[1].eq("-h") || args[1].eq("--help") {
         println!("{HELP}");
         std::process::exit(0);
     }
+
     let mon = env::args().nth(1).unwrap();
     if let None = Monitors::get()
         .expect("unable to get monitors")
