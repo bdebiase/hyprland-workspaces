@@ -5,6 +5,8 @@
 # hyprland-workspaces
 A multi-monitor aware Hyprland workspace widget. Follows the specified monitor and outputs the currently open workspaces. Designed to be used with [Eww](https://github.com/elkowar/eww), but may function with other bars. Compatible with [hyprland-autoname-workspaces](https://github.com/cyrinux/hyprland-autoname-workspaces).
 
+![](https://github.com/bdebiase/hyprland-workspaces/blob/main/iconsgif.gif?raw=true)
+
 ## Installation Instructions
 ### Dependencies
 [Hyprland](https://github.com/hyprwm/Hyprland)
