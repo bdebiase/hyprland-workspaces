@@ -86,7 +86,10 @@ fn output(monitor: &str) {
 
         // CUSTOM IMPLEMENTATION
         let mut clients = Clients::get().expect("unable to get clients").into_iter();
-        let last_client = clients.find(|client| client.title == workspace.last_window_title);
+        let last_client = match workspace.windows {
+            1 => clients.find(|client| client.workspace.id == workspace.id),
+            _ => clients.find(|client| client.title == workspace.last_window_title),
+        };
 
         let mut icon_path = "".to_string();
         let mut color = [0, 0, 0];
@@ -96,6 +99,7 @@ fn output(monitor: &str) {
             class_name = match class_name.as_str() {
                 "code-url-handler" => "code".to_string(),
                 "kitty-temp" => "kitty".to_string(),
+                "WebCord" => "webcord".to_string(),
                 _ => class_name,
             };
 
