@@ -109,7 +109,7 @@ fn output(monitor: &str, range: &str) {
             let mut class_name = client.initial_class;
             class_name = match class_name.as_str() {
                 "code-url-handler" => "code".to_string(),
-                "kitty-temp" => "kitty".to_string(),
+                "kitty-floating" => "kitty".to_string(),
                 "WebCord" => "webcord".to_string(),
                 _ => class_name,
             };
