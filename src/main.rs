@@ -230,64 +230,6 @@ fn main() -> Result<()> {
     
 }
 
-
-fn get_desktop_file_path(class_name: &str) -> Option<String> {
-    let dir = Path::new("/etc/profiles/per-user/ben/share/applications/");
-    let entries = fs::read_dir(dir).unwrap();
-
-    for entry in entries {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        let file_name = path.file_stem().unwrap().to_str().unwrap();
-        
-        // Open the .desktop file and read its contents
-        let file = fs::File::open(&path).unwrap();
-        let reader = std::io::BufReader::new(file);
-        
-        // Initialize variables to hold the found values
-        let mut is_application = false;
-        let mut startup_wm_class = None;
-        
-        // Read each line of the .desktop file
-        for line in reader.lines() {
-            let line = line.unwrap();
-            if line.starts_with("Type=Application") {
-                is_application = true;
-            } else if line.starts_with("StartupWMClass=") {
-                startup_wm_class = Some(line["StartupWMClass=".len()..].to_string());
-            }
-        }
-        
-        // If the file is not an application, ignore it
-        if !is_application {
-            continue;
-        }
-        
-        // Check if the class name matches the StartupWMClass or the file name
-        if Some(class_name.to_string()) == startup_wm_class || class_name == file_name {
-            return Some(path.to_str().unwrap().to_string());
-        }
-    }
-
-    None
-}
-
-
-fn get_icon_name(desktop_file_path: &str) -> io::Result<Option<String>> {
-    let file = File::open(desktop_file_path)?;
-    let reader = io::BufReader::new(file);
-
-    for line in reader.lines() {
-        let line = line?;
-        if line.starts_with("Icon=") {
-            return Ok(Some(line[5..].to_string()));
-        }
-    }
-
-    Ok(None)
-}
-
-
 fn get_primary_color_svg(string_path: String) -> Option<[u8; 3]> {
     if string_path == "" {
         return None;
