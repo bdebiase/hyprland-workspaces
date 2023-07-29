@@ -41,7 +41,17 @@ struct WorkspaceCustom {
     pub color: [u8; 3],
 }
 
-fn output(monitor: &str) {
+fn output(monitor: &str, range: &str) {
+    // specify workspace ranges
+    let ids: Vec<&str> = range.split('-').collect();
+    if ids.len() != 2 {
+        println!("Invalid range format. Expected format: START-END");
+        std::process::exit(0);
+    }
+
+    let start_id = ids[0].parse::<i32>().expect("error with id");
+    let end_id = ids[1].parse::<i32>().expect("error with id");
+
     // get all workspaces
     let mut workspaces: Vec<_> = Workspaces::get().expect("unable to get workspaces").into_iter().collect();
     workspaces.sort_by_key(|w| w.id);
@@ -58,6 +68,7 @@ fn output(monitor: &str) {
             .active_workspace
             .id;
     }
+    
     //active monitor name
     let active_monitor_name = Monitors::get()
         .expect("unable to get monitors")
@@ -66,7 +77,7 @@ fn output(monitor: &str) {
         .name;
 
     //let mut out_workspaces: Vec<WorkspaceCustom> = Vec::new();
-    let mut out_workspaces: Vec<WorkspaceCustom> = (1..=10).map(|id| {
+    let mut out_workspaces: Vec<WorkspaceCustom> = (start_id..=end_id).map(|id| {
         WorkspaceCustom {
             name: format!("Workspace {}", id),
             id: id,
@@ -153,12 +164,14 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     //check args
-    if args.len() != 2 || args[1].eq("-h") || args[1].eq("--help") {
+    if args.len() != 3 || args[1].eq("-h") || args[1].eq("--help") {
         println!("{HELP}");
         std::process::exit(0);
     }
 
     let mon = env::args().nth(1).unwrap();
+    let id_range = env::args().nth(2).unwrap();
+
     if let None = Monitors::get()
         .expect("unable to get monitors")
         .find(|m| m.name == mon || mon == "_") {
@@ -168,7 +181,7 @@ fn main() -> Result<()> {
 
     macro_rules! output {
         () => {
-            output(&env::args().nth(1).unwrap());
+            output(&env::args().nth(1).unwrap(), &env::args().nth(2).unwrap());
         };
     }
     output!();
