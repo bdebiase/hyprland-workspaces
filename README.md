@@ -1,8 +1,10 @@
-**⚠️WARNING⚠️**
-
-**This fork adds xdg icon support and color for workspace buttons. I'm not that gret at rust so the code may be very unoptimized. Things are expected not to work or be implemented yet. This is mostly for me to mess around with functional hyprland ricing.**
+> [!IMPORTANT]
+> This fork is no longer used. Moved from [EWW](https://github.com/elkowar/eww) to [AGS](https://github.com/Aylur/ags) for customization and ease-of-use. See [Aylur's dotfiles](https://github.com/Aylur/dotfiles).
 
 # hyprland-workspaces
+> [!WARNING]
+> This fork adds xdg icon support and color for workspace buttons. I'm not excellent at rust so the code may be very unoptimized. Things are expected not to work or be implemented yet. This is mostly for me to mess around with functional hyprland ricing.
+
 A multi-monitor aware Hyprland workspace widget. Follows the specified monitor and outputs the currently open workspaces. Designed to be used with [Eww](https://github.com/elkowar/eww), but may function with other bars. Compatible with [hyprland-autoname-workspaces](https://github.com/cyrinux/hyprland-autoname-workspaces).
 
 ![](https://github.com/bdebiase/hyprland-workspaces/blob/main/iconsgif.gif?raw=true)
